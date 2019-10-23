@@ -3,3 +3,5 @@
 /tz/tz/bin/Debug/
 /tz/tz/obj/
 /.vs/
+**/obj/
+**/bin/
