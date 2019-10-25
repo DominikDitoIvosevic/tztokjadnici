@@ -6,13 +6,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace tz2
 {
     class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args) { MainAsync(args).Wait(); }
+        static async Task MainAsync(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()
@@ -29,17 +31,39 @@ namespace tz2
         {
             var config = new CrawlConfiguration
             {
-                MaxPagesToCrawl = 10, //Only crawl 10 pages
-                MinCrawlDelayPerDomainMilliSeconds = 100, //Wait this many millisecs between requests
+                UserAgentString = "2019RLCrawlAThon",
+                MaxPagesToCrawl = 0,
             };
+            var start = new Uri("http://filehippo.com");
             var crawler = new PoliteWebCrawler(config);
-            crawler.ShouldCrawlPageDecisionMaker = (page, ctx) => {
+
+            crawler.ShouldCrawlPageDecisionMaker = (page, ctx) =>
+            {
+                if (page.Uri.Host != start.Host)
+                {
+                    return new CrawlDecision { Allow = false, Reason = "Different domain" };
+                }
                 return new CrawlDecision { Allow = true };
             };
+            var files = new HashSet<string>();
+            var decMaker = new CrawlDecisionMaker();
+            crawler.ShouldDownloadPageContentDecisionMaker = (page, ctx) =>
+            {
+                if (page.Uri.AbsolutePath.EndsWith(".exe")) {
+                    lock (files) {
+                        Console.WriteLine("Found file: " + page.Uri.AbsolutePath);
+                        files.Add(page.Uri.AbsolutePath);
+                    }
+                }
+                return decMaker.ShouldDownloadPageContent(page, ctx);
+            };
+            crawler.PageCrawlCompleted += Crawler_PageCrawlCompleted;
+            var crawlResult = await crawler.CrawlAsync(start);
+        }
 
-            crawler.PageCrawlCompleted += PageCrawlCompleted;//Several events available...
-
-            var crawlResult = await crawler.CrawlAsync(new Uri("http://filehippo.com"));
+        private static void Crawler_PageCrawlCompleted(object sender, PageCrawlCompletedArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         private static async Task DemoSinglePageRequest()
@@ -52,12 +76,6 @@ namespace tz2
                 url = crawledPage.Uri,
                 status = Convert.ToInt32(crawledPage.HttpResponseMessage.StatusCode)
             });
-        }
-
-        private static void PageCrawlCompleted(object sender, PageCrawlCompletedArgs e)
-        {
-            var httpStatus = e.CrawledPage.HttpResponseMessage.StatusCode;
-            var rawPageText = e.CrawledPage.Content.Text;
         }
     }
 }
