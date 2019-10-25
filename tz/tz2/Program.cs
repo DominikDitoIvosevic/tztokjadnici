@@ -4,8 +4,10 @@ using Abot2.Poco;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,7 +36,7 @@ namespace tz2
                 UserAgentString = "2019RLCrawlAThon",
                 MaxPagesToCrawl = 0,
             };
-            var start = new Uri("http://filehippo.com");
+            var start = new Uri("https://filehippo.com/download_ccleaner/post_download/");
             var crawler = new PoliteWebCrawler(config);
 
             crawler.ShouldCrawlPageDecisionMaker = (page, ctx) =>
@@ -49,8 +51,10 @@ namespace tz2
             var decMaker = new CrawlDecisionMaker();
             crawler.ShouldDownloadPageContentDecisionMaker = (page, ctx) =>
             {
-                if (page.Uri.AbsolutePath.EndsWith(".exe")) {
-                    lock (files) {
+                if (page.Uri.AbsolutePath.EndsWith(".exe"))
+                {
+                    lock (files)
+                    {
                         Console.WriteLine("Found file: " + page.Uri.AbsolutePath);
                         files.Add(page.Uri.AbsolutePath);
                     }
@@ -63,7 +67,20 @@ namespace tz2
 
         private static void Crawler_PageCrawlCompleted(object sender, PageCrawlCompletedArgs e)
         {
-            throw new NotImplementedException();
+            string matchString = @"""(https:[^""]*)";
+
+            MatchCollection matches = Regex.Matches(e.CrawledPage.Content.Text, matchString, RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+            foreach (var match in matches.OfType<Match>())
+            {
+                try
+                {
+                    var uri = new Uri(match.Groups[1].Value);
+                    if (match.Groups[1].Value.Contains(".exe")) { Debugger.Break(); }
+                    e.CrawlContext.Scheduler.Add(new PageToCrawl(uri));
+                }
+                catch { }
+            }
         }
 
         private static async Task DemoSinglePageRequest()
