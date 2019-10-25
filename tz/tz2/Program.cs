@@ -76,7 +76,6 @@ namespace tz2
                 try
                 {
                     var uri = new Uri(match.Groups[1].Value);
-                    if (match.Groups[1].Value.Contains(".exe")) { Debugger.Break(); }
                     e.CrawlContext.Scheduler.Add(new PageToCrawl(uri));
                 }
                 catch { }
