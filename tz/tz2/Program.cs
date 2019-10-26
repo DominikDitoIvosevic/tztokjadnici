@@ -79,7 +79,11 @@ namespace tz2
                 try
                 {
                     var uri = new Uri(match.Groups[1].Value);
-                    e.CrawlContext.Scheduler.Add(new PageToCrawl(uri));
+
+                    if (BetterDecisionMaker.ShouldCrawl(uri, null).Allow)
+                    {
+                        e.CrawlContext.Scheduler.Add(new PageToCrawl(uri));
+                    }
                 }
                 catch { }
             }
@@ -158,11 +162,11 @@ namespace tz2
             this.start = start;
         }
 
-        private string GetDomain(Uri uri) => string.Join(".", uri.Host.Split('.').Reverse().Take(2).Reverse());
+        private static string GetDomain(Uri uri) => string.Join(".", uri.Host.Split('.').Reverse().Take(2).Reverse());
 
-        private CrawlDecision ShouldCrawl(PageToCrawl page)
+        public static CrawlDecision ShouldCrawl(Uri page, Uri start)
         {
-            if (GetDomain(page.Uri) != GetDomain(start))
+            if (start != null && GetDomain(page) != GetDomain(start))
             {
                 return new CrawlDecision { Allow = false, Reason = "Different domain" };
             }
@@ -174,7 +178,7 @@ namespace tz2
                 return new CrawlDecision { Allow = false, Reason = "" };
             }
 
-            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.Uri.AbsolutePath.Contains(pp)))
+            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.AbsolutePath.Contains(pp)))
             {
                 return new CrawlDecision { Allow = false, Reason = "Ads or images" };
             }
@@ -183,14 +187,14 @@ namespace tz2
 
         public CrawlDecision ShouldCrawlPage(PageToCrawl page, CrawlContext crawlContext)
         {
-            var dec = ShouldCrawl(page);
+            var dec = ShouldCrawl(page.Uri, start);
             if (!dec.Allow) return dec;
             return def.ShouldCrawlPage(page, crawlContext);
         }
 
         public CrawlDecision ShouldCrawlPageLinks(CrawledPage page, CrawlContext crawlContext)
         {
-            var dec = ShouldCrawl(page);
+            var dec = ShouldCrawl(page.Uri, start);
             if (!dec.Allow) return dec;
             return def.ShouldCrawlPageLinks(page, crawlContext);
         }
@@ -205,14 +209,14 @@ namespace tz2
             return def.ShouldRecrawlPage(crawledPage, crawlContext);
         }
 
-        private static bool IsCultureLink(PageToCrawl page)
+        private static bool IsCultureLink(Uri page)
         {
             List<string> cc = Cultures;
-            var isCulture = cc.Any(s => page.Uri.AbsolutePath.Contains("/" + s + "/"));
+            var isCulture = cc.Any(s => page.AbsolutePath.Contains("/" + s + "/"));
             return isCulture;
         }
 
-        private static List<string> Cultures = GetCultures();
+        public static List<string> Cultures = GetCultures();
 
         private static List<string> GetCultures()
         {
