@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -53,6 +54,7 @@ namespace tz2
 
             var files = new HashSet<string>();
             var decMaker = new CrawlDecisionMaker();
+            var batch = new HashSet<string>();
             crawler.PageCrawlCompleted += Crawler_PageCrawlCompleted;
             crawler.PageCrawlCompleted += (sender, e) =>
             {
@@ -62,7 +64,27 @@ namespace tz2
                     {
                         Console.WriteLine("Found file: " + e.CrawledPage.Uri.Host + e.CrawledPage.Uri.LocalPath);
                         Console.WriteLine(e.CrawledPage.CrawlDepth);
-                        files.Add(e.CrawledPage.Uri.ToString());
+                        if (!files.Contains(e.CrawledPage.Uri.ToString()))
+                        {
+                            files.Add(e.CrawledPage.Uri.ToString());
+                            batch.Add(e.CrawledPage.Uri.ToString());
+                            if (batch.Count >= 10)
+                            {
+                                using (var httpClient = new HttpClient())
+                                {
+                                    using (var request = new HttpRequestMessage(new HttpMethod("POST"), "http://hackathon.reversinglabs.com/api/test/bulk"))
+                                    {
+                                        var base64authorization = Convert.ToBase64String(Encoding.ASCII.GetBytes("tztok_jadnici:7@dQ6dqq7YZggcd"));
+                                        request.Headers.TryAddWithoutValidation("Authorization", $"Basic {base64authorization}");
+
+                                        var body = "{\"crawlathon\": {\"query\": {\"site\": \"filehippo\", \"links\":[" + string.Join(", ", batch.Select(s => "\"" + s + "\"")) + "]}}}";
+                                        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                                        var resp = httpClient.SendAsync(request).Result;
+                                        batch.Clear();
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             };
@@ -117,7 +139,7 @@ namespace tz2
             {
                 var score = 0;
                 if (page.Uri.ToString().Contains(".exe")) score += 100;
-                //if (page.Uri.ToString().Contains("post_download")) score += 100;
+                if (page.Uri.ToString().Contains("post_download")) score += 100;
                 if (page.Uri.ToString().Contains("download")) score += 10;
                 if (page.Uri.ToString().Contains("dl")) score += 1;
                 score -= page.CrawlDepth;
