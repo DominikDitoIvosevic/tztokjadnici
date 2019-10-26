@@ -1,6 +1,7 @@
 ﻿using Abot2.Core;
 using Abot2.Crawler;
 using Abot2.Poco;
+using DataStructures;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -36,9 +37,19 @@ namespace tz2
             {
                 UserAgentString = "2019RLCrawlAThon",
                 MaxPagesToCrawl = 0,
+                MaxConcurrentThreads = 1,
             };
             var start = new Uri("https://filehippo.com/download_ccleaner/post_download/");
-            var crawler = new PoliteWebCrawler(config);
+            var crawler = new PoliteWebCrawler(
+                config,
+                null,
+                null,
+                new Scheduler( false, null, new PriorityUriRepository()),
+                null,
+                null,
+                null,
+                null,
+                null);
 
             crawler.ShouldCrawlPageDecisionMaker = (page, ctx) =>
             {
@@ -63,19 +74,18 @@ namespace tz2
             };
             var files = new HashSet<string>();
             var decMaker = new CrawlDecisionMaker();
-            crawler.ShouldDownloadPageContentDecisionMaker = (page, ctx) =>
+            crawler.PageCrawlCompleted += Crawler_PageCrawlCompleted;
+            crawler.PageCrawlCompleted += (sender, e) =>
             {
-                if (page.Uri.AbsolutePath.EndsWith(".exe"))
+                if (e.CrawledPage.Uri.AbsolutePath.Contains(".exe"))
                 {
                     lock (files)
                     {
-                        Console.WriteLine("Found file: " + page.Uri.AbsolutePath);
-                        files.Add(page.Uri.AbsolutePath);
+                        Console.WriteLine("Found file: " + e.CrawledPage.Uri.AbsolutePath);
+                        files.Add(e.CrawledPage.Uri.ToString());
                     }
                 }
-                return decMaker.ShouldDownloadPageContent(page, ctx);
             };
-            crawler.PageCrawlCompleted += Crawler_PageCrawlCompleted;
             var crawlResult = await crawler.CrawlAsync(start);
         }
 
@@ -128,6 +138,53 @@ namespace tz2
                 url = crawledPage.Uri,
                 status = Convert.ToInt32(crawledPage.HttpResponseMessage.StatusCode)
             });
+        }
+    }
+
+    class PriorityUriRepository : IPagesToCrawlRepository
+    {
+        private ConcurrentPriorityQueue<(int, int, PageToCrawl)> q;
+        public PriorityUriRepository()
+        {
+            q = new ConcurrentPriorityQueue<(int, int, PageToCrawl)>(Comparer<(int, int, PageToCrawl)>.Create((t1, t2) =>
+            {
+                if (t1.Item1 == t2.Item1) return t1.Item2 - t2.Item2;
+                return t1.Item1 - t2.Item1;
+            }));
+        }
+
+        public void Add(PageToCrawl page)
+        {
+            if (page.Uri.AbsolutePath.Contains("exe"))
+            {
+                q.Add((100, q.Count, page));
+            }
+            else
+            {
+                q.Add((0, q.Count, page));
+            }
+        }
+
+        public void Clear()
+        {
+            q.Clear();
+        }
+
+        public int Count()
+        {
+            return q.Count;
+        }
+
+        public void Dispose()
+        {
+            q = null;
+        }
+
+        public PageToCrawl GetNext()
+        {
+            (int, int, PageToCrawl) res;
+            q.TryTake(out res);
+            return res.Item3;
         }
     }
 }
