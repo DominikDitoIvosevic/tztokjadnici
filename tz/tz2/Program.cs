@@ -1,6 +1,7 @@
 ﻿using Abot2.Core;
 using Abot2.Crawler;
 using Abot2.Poco;
+using Abot2.Util;
 using DataStructures;
 using Serilog;
 using System;
@@ -68,6 +69,11 @@ namespace tz2
 
         private static void Crawler_PageCrawlCompleted(object sender, PageCrawlCompletedArgs e)
         {
+
+            if (e.CrawledPage.Uri.ToString() == "https://filehippo.com/windows/browsers/")
+            {
+                Debugger.Break();
+            }
             string matchString = @"""(https:[^""]*)";
 
             MatchCollection matches = Regex.Matches(e.CrawledPage.Content.Text, matchString, RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -90,14 +96,11 @@ namespace tz2
 
     class PriorityUriRepository : IPagesToCrawlRepository
     {
-        private ConcurrentPriorityQueue<(int, int, PageToCrawl)> q;
-        private int ord;
+        private ConcurrentPriorityQueue<(int, PageToCrawl)> q;
         public PriorityUriRepository()
         {
-            ord = 0;
-            q = new ConcurrentPriorityQueue<(int, int, PageToCrawl)>(Comparer<(int, int, PageToCrawl)>.Create((t1, t2) =>
+            q = new ConcurrentPriorityQueue<(int, PageToCrawl)>(Comparer<(int, PageToCrawl)>.Create((t1, t2) =>
             {
-                if (t1.Item1 == t2.Item1) return t1.Item2 - t2.Item2;
                 return t1.Item1 - t2.Item1;
             }));
         }
@@ -108,8 +111,8 @@ namespace tz2
             if (page.Uri.AbsolutePath.Contains(".exe")) score += 100;
             if (page.Uri.AbsolutePath.Contains("download")) score += 10;
             if (page.Uri.AbsolutePath.Contains("dl")) score += 1;
-            q.Add((score, -ord, page));
-            ord++;
+            score -= page.CrawlDepth * 5;
+            q.Add((score, page));
         }
 
         public void Clear()
@@ -129,9 +132,9 @@ namespace tz2
 
         public PageToCrawl GetNext()
         {
-            (int, int, PageToCrawl) res;
+            (int, PageToCrawl) res;
             q.TryTake(out res);
-            return res.Item3;
+            return res.Item2;
         }
     }
 
