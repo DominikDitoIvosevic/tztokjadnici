@@ -36,6 +36,7 @@ namespace tz2
             {
                 UserAgentString = "2019RLCrawlAThon",
                 MaxPagesToCrawl = 0,
+                
             };
             var start = new Uri("https://filehippo.com/");
             var crawler = new PoliteWebCrawler(
@@ -58,7 +59,8 @@ namespace tz2
                 {
                     lock (files)
                     {
-                        Console.WriteLine("Found file: " + e.CrawledPage.Uri.ToString());
+                        Console.WriteLine("Found file: " + e.CrawledPage.Uri.Host + e.CrawledPage.Uri.LocalPath);
+                        Console.WriteLine(e.CrawledPage.CrawlDepth);
                         files.Add(e.CrawledPage.Uri.ToString());
                     }
                 }
@@ -161,7 +163,7 @@ namespace tz2
                 return new CrawlDecision { Allow = false, Reason = "" };
             }
 
-            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.AbsolutePath.Contains(pp)))
+            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script", "news" }.Any(pp => page.AbsolutePath.Contains(pp)))
             {
                 return new CrawlDecision { Allow = false, Reason = "Ads or images" };
             }
@@ -170,6 +172,8 @@ namespace tz2
 
         public CrawlDecision ShouldCrawlPage(PageToCrawl page, CrawlContext crawlContext)
         {
+            //return new CrawlDecision { Allow = false, Reason = "fuck off" };
+
             var dec = ShouldCrawl(page.Uri, start);
             if (!dec.Allow) return dec;
             return def.ShouldCrawlPage(page, crawlContext);
@@ -177,6 +181,8 @@ namespace tz2
 
         public CrawlDecision ShouldCrawlPageLinks(CrawledPage page, CrawlContext crawlContext)
         {
+            //return new CrawlDecision { Allow = false, Reason = "fuck off" };
+
             var dec = ShouldCrawl(page.Uri, start);
             if (!dec.Allow) return dec;
             return def.ShouldCrawlPageLinks(page, crawlContext);
@@ -184,11 +190,15 @@ namespace tz2
 
         public CrawlDecision ShouldDownloadPageContent(CrawledPage crawledPage, CrawlContext crawlContext)
         {
+            //return new CrawlDecision { Allow = false, Reason = "fuck off" };
+
             return def.ShouldDownloadPageContent(crawledPage, crawlContext);
         }
 
         public CrawlDecision ShouldRecrawlPage(CrawledPage crawledPage, CrawlContext crawlContext)
         {
+            return new CrawlDecision { Allow = false, Reason = "fuck off" };
+
             return def.ShouldRecrawlPage(crawledPage, crawlContext);
         }
 
