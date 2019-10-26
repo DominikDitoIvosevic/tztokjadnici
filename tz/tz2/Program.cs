@@ -37,7 +37,7 @@ namespace tz2
             {
                 UserAgentString = "2019RLCrawlAThon",
                 MaxPagesToCrawl = 0,
-                
+                MinCrawlDelayPerDomainMilliSeconds = 10,
             };
             var start = new Uri("https://filehippo.com/");
             var crawler = new PoliteWebCrawler(
@@ -74,11 +74,15 @@ namespace tz2
 
             if (e.CrawledPage.Uri.ToString() == "https://filehippo.com/windows/browsers/")
             {
-                Debugger.Break();
+                //Debugger.Break();
             }
             string matchString = @"""(https:[^""]*)";
 
+            //Console.WriteLine("start rgx");
+            //var sw = Stopwatch.StartNew();
             MatchCollection matches = Regex.Matches(e.CrawledPage.Content.Text, matchString, RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            //if (sw.ElapsedMilliseconds > 100) Console.WriteLine(sw.ElapsedMilliseconds);
+            //Console.WriteLine("end rgx");
 
             foreach (var match in matches.OfType<Match>())
             {
@@ -98,7 +102,7 @@ namespace tz2
 
     class PriorityUriRepository : IPagesToCrawlRepository
     {
-        private ConcurrentPriorityQueue<(int, PageToCrawl)> q;
+        private PriorityQueue<(int, PageToCrawl)> q;
         public PriorityUriRepository()
         {
             q = new ConcurrentPriorityQueue<(int, PageToCrawl)>(Comparer<(int, PageToCrawl)>.Create((t1, t2) =>
@@ -109,17 +113,24 @@ namespace tz2
 
         public void Add(PageToCrawl page)
         {
-            var score = 0;
-            if (page.Uri.AbsolutePath.Contains(".exe")) score += 100;
-            if (page.Uri.AbsolutePath.Contains("download")) score += 10;
-            if (page.Uri.AbsolutePath.Contains("dl")) score += 1;
-            score -= page.CrawlDepth * 5;
-            q.Add((score, page));
+            lock (q)
+            {
+                var score = 0;
+                if (page.Uri.ToString().Contains(".exe")) score += 100;
+                //if (page.Uri.ToString().Contains("post_download")) score += 100;
+                if (page.Uri.ToString().Contains("download")) score += 10;
+                if (page.Uri.ToString().Contains("dl")) score += 1;
+                score -= page.CrawlDepth;
+                q.Add((score, page));
+            }
         }
 
         public void Clear()
         {
-            q.Clear();
+            lock (q)
+            {
+                q.Clear();
+            }
         }
 
         public int Count()
@@ -134,9 +145,11 @@ namespace tz2
 
         public PageToCrawl GetNext()
         {
-            (int, PageToCrawl) res;
-            q.TryTake(out res);
-            return res.Item2;
+            lock (q)
+            {
+                if (q.Count > 0) return q.Take().Item2;
+                return null;
+            }
         }
     }
 
