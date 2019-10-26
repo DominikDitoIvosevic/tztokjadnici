@@ -21,7 +21,7 @@ namespace tz2
         static async Task MainAsync(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
+                .MinimumLevel.Warning()
                 .WriteTo.Console()
                 .CreateLogger();
             
@@ -39,7 +39,7 @@ namespace tz2
                 MaxPagesToCrawl = 0,
                 MaxConcurrentThreads = 1,
             };
-            var start = new Uri("https://filehippo.com/download_ccleaner/post_download/");
+            var start = new Uri("https://filehippo.com/");
             var crawler = new PoliteWebCrawler(
                 config,
                 new BetterDecisionMaker(start),
@@ -60,7 +60,7 @@ namespace tz2
                 {
                     lock (files)
                     {
-                        Console.WriteLine("Found file: " + e.CrawledPage.Uri.AbsolutePath);
+                        Console.WriteLine("Found file: " + e.CrawledPage.Uri.ToString());
                         files.Add(e.CrawledPage.Uri.ToString());
                     }
                 }
@@ -101,8 +101,10 @@ namespace tz2
     class PriorityUriRepository : IPagesToCrawlRepository
     {
         private ConcurrentPriorityQueue<(int, int, PageToCrawl)> q;
+        private int ord;
         public PriorityUriRepository()
         {
+            ord = 0;
             q = new ConcurrentPriorityQueue<(int, int, PageToCrawl)>(Comparer<(int, int, PageToCrawl)>.Create((t1, t2) =>
             {
                 if (t1.Item1 == t2.Item1) return t1.Item2 - t2.Item2;
@@ -114,12 +116,13 @@ namespace tz2
         {
             if (page.Uri.AbsolutePath.Contains("exe"))
             {
-                q.Add((100, q.Count, page));
+                q.Add((100, -ord, page));
             }
             else
             {
-                q.Add((0, q.Count, page));
+                q.Add((0, -ord, page));
             }
+            ord++;
         }
 
         public void Clear()
@@ -155,9 +158,11 @@ namespace tz2
             this.start = start;
         }
 
-        public CrawlDecision ShouldCrawlPage(PageToCrawl page, CrawlContext crawlContext)
+        private string GetDomain(Uri uri) => string.Join(".", uri.Host.Split('.').Reverse().Take(2).Reverse());
+
+        private CrawlDecision ShouldCrawl(PageToCrawl page)
         {
-            if (page.Uri.Host != start.Host)
+            if (GetDomain(page.Uri) != GetDomain(start))
             {
                 return new CrawlDecision { Allow = false, Reason = "Different domain" };
             }
@@ -173,27 +178,20 @@ namespace tz2
             {
                 return new CrawlDecision { Allow = false, Reason = "Ads or images" };
             }
+            return new CrawlDecision { Allow = true };
+        }
+
+        public CrawlDecision ShouldCrawlPage(PageToCrawl page, CrawlContext crawlContext)
+        {
+            var dec = ShouldCrawl(page);
+            if (!dec.Allow) return dec;
             return def.ShouldCrawlPage(page, crawlContext);
         }
 
         public CrawlDecision ShouldCrawlPageLinks(CrawledPage page, CrawlContext crawlContext)
         {
-            if (page.Uri.Host != start.Host)
-            {
-                return new CrawlDecision { Allow = false, Reason = "Different domain" };
-            }
-
-            bool isCulture = IsCultureLink(page);
-
-            if (isCulture)
-            {
-                return new CrawlDecision { Allow = false, Reason = "" };
-            }
-
-            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.Uri.AbsolutePath.Contains(pp)))
-            {
-                return new CrawlDecision { Allow = false, Reason = "Ads or images" };
-            }
+            var dec = ShouldCrawl(page);
+            if (!dec.Allow) return dec;
             return def.ShouldCrawlPageLinks(page, crawlContext);
         }
 
