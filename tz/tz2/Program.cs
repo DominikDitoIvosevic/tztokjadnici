@@ -24,11 +24,10 @@ namespace tz2
                 .MinimumLevel.Warning()
                 .WriteTo.Console()
                 .CreateLogger();
-            
+
             Log.Logger.Information("Demo starting up!");
 
             await DemoSimpleCrawler();
-            await DemoSinglePageRequest();
         }
 
         private static async Task DemoSimpleCrawler()
@@ -37,14 +36,13 @@ namespace tz2
             {
                 UserAgentString = "2019RLCrawlAThon",
                 MaxPagesToCrawl = 0,
-                MaxConcurrentThreads = 1,
             };
             var start = new Uri("https://filehippo.com/");
             var crawler = new PoliteWebCrawler(
                 config,
                 new BetterDecisionMaker(start),
                 null,
-                new Scheduler( false, null, new PriorityUriRepository()),
+                new Scheduler(false, null, new PriorityUriRepository()),
                 null,
                 null,
                 null,
@@ -88,18 +86,6 @@ namespace tz2
                 catch { }
             }
         }
-
-        private static async Task DemoSinglePageRequest()
-        {
-            var pageRequester = new PageRequester(new CrawlConfiguration(), new WebContentExtractor());
-
-            var crawledPage = await pageRequester.MakeRequestAsync(new Uri("http://google.com"));
-            Log.Logger.Information("{result}", new
-            {
-                url = crawledPage.Uri,
-                status = Convert.ToInt32(crawledPage.HttpResponseMessage.StatusCode)
-            });
-        }
     }
 
     class PriorityUriRepository : IPagesToCrawlRepository
@@ -118,14 +104,11 @@ namespace tz2
 
         public void Add(PageToCrawl page)
         {
-            if (page.Uri.AbsolutePath.Contains("exe"))
-            {
-                q.Add((100, -ord, page));
-            }
-            else
-            {
-                q.Add((0, -ord, page));
-            }
+            var score = 0;
+            if (page.Uri.AbsolutePath.Contains(".exe")) score += 100;
+            if (page.Uri.AbsolutePath.Contains("download")) score += 10;
+            if (page.Uri.AbsolutePath.Contains("dl")) score += 1;
+            q.Add((score, -ord, page));
             ord++;
         }
 
