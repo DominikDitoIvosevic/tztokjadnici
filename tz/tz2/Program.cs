@@ -5,6 +5,7 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -45,6 +46,19 @@ namespace tz2
                 {
                     return new CrawlDecision { Allow = false, Reason = "Different domain" };
                 }
+
+                bool isCulture = IsCultureLink(page);
+
+                if (isCulture)
+                {
+                    return new CrawlDecision { Allow = false, Reason = "" };
+                }
+
+                if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.Uri.AbsolutePath.Contains(pp)))
+                {
+                    return new CrawlDecision { Allow = false, Reason = "Ads or images" };
+                }
+
                 return new CrawlDecision { Allow = true };
             };
             var files = new HashSet<string>();
@@ -63,6 +77,28 @@ namespace tz2
             };
             crawler.PageCrawlCompleted += Crawler_PageCrawlCompleted;
             var crawlResult = await crawler.CrawlAsync(start);
+        }
+
+        private static bool IsCultureLink(PageToCrawl page)
+        {
+            List<string> cc = Cultures;
+            var isCulture = cc.Any(s => page.Uri.AbsolutePath.Contains("/" + s + "/"));
+            return isCulture;
+        }
+
+        private static List<string> Cultures = GetCultures();
+
+        private static List<string> GetCultures()
+        {
+            var c = CultureInfo.GetCultures(CultureTypes.AllCultures);
+
+            var c123 = c.Where(ss => ss.Name.Contains("-")).Select(sss => sss.Name.Substring(sss.Name.IndexOf("-") + 1)).Where(sss => sss.Length == 2 && !sss.Contains("-"));
+
+            var cc = c.Select(c1 => c1.TwoLetterISOLanguageName)
+                .Concat(c123).Select(cccc => cccc.ToLower())
+                .Distinct().Where(ccc => ccc.Length == 2 && ccc != "en").ToList();
+            cc.Sort();
+            return cc;
         }
 
         private static void Crawler_PageCrawlCompleted(object sender, PageCrawlCompletedArgs e)
