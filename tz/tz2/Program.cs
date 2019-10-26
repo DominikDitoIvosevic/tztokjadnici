@@ -24,7 +24,7 @@ namespace tz2
                 .MinimumLevel.Information()
                 .WriteTo.Console()
                 .CreateLogger();
-
+            
             Log.Logger.Information("Demo starting up!");
 
             await DemoSimpleCrawler();

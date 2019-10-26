@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.29411.108
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tz2", "tz2\tz2.csproj", "{9B1936FE-41FF-4E79-8E8E-AEA906D0F8C8}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Abot2", "abot-master\Abot2\Abot2.csproj", "{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,14 @@ Global
 		{9B1936FE-41FF-4E79-8E8E-AEA906D0F8C8}.Release|Any CPU.Build.0 = Release|Any CPU
 		{9B1936FE-41FF-4E79-8E8E-AEA906D0F8C8}.Release|x64.ActiveCfg = Release|x64
 		{9B1936FE-41FF-4E79-8E8E-AEA906D0F8C8}.Release|x64.Build.0 = Release|x64
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Debug|x64.Build.0 = Debug|Any CPU
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Release|x64.ActiveCfg = Release|Any CPU
+		{834FD7A8-37F9-4631-A6D1-971B4BD5F6C2}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
