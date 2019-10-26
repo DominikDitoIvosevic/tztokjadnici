@@ -42,7 +42,7 @@ namespace tz2
             var start = new Uri("https://filehippo.com/download_ccleaner/post_download/");
             var crawler = new PoliteWebCrawler(
                 config,
-                null,
+                new BetterDecisionMaker(start),
                 null,
                 new Scheduler( false, null, new PriorityUriRepository()),
                 null,
@@ -50,13 +50,6 @@ namespace tz2
                 null,
                 null,
                 null);
-
-            crawler.ShouldCrawlPageDecisionMaker = (page, ctx) =>
-            {
-                var uri = page.Uri;
-                return ShouldCrawl(start, uri);
-            };
-            crawler.ShouldCrawlPageLinksDecisionMaker = (page, ctx) => ShouldCrawl(start, page.Uri);
 
             var files = new HashSet<string>();
             var decMaker = new CrawlDecisionMaker();
@@ -73,50 +66,6 @@ namespace tz2
                 }
             };
             var crawlResult = await crawler.CrawlAsync(start);
-        }
-
-        private static CrawlDecision ShouldCrawl(Uri start, Uri uri)
-        {
-            if (uri.Host != start.Host)
-            {
-                return new CrawlDecision { Allow = false, Reason = "Different domain" };
-            }
-
-            bool isCulture = IsCultureLink(uri);
-
-            if (isCulture)
-            {
-                return new CrawlDecision { Allow = false, Reason = "" };
-            }
-
-            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => uri.AbsolutePath.Contains(pp)))
-            {
-                return new CrawlDecision { Allow = false, Reason = "Ads or images" };
-            }
-
-            return new CrawlDecision { Allow = true };
-        }
-
-        private static bool IsCultureLink(Uri uri)
-        {
-            List<string> cc = Cultures;
-            var isCulture = cc.Any(s => uri.AbsolutePath.Contains("/" + s + "/"));
-            return isCulture;
-        }
-
-        private static List<string> Cultures = GetCultures();
-
-        private static List<string> GetCultures()
-        {
-            var c = CultureInfo.GetCultures(CultureTypes.AllCultures);
-
-            var c123 = c.Where(ss => ss.Name.Contains("-")).Select(sss => sss.Name.Substring(sss.Name.IndexOf("-") + 1)).Where(sss => sss.Length == 2 && !sss.Contains("-"));
-
-            var cc = c.Select(c1 => c1.TwoLetterISOLanguageName)
-                .Concat(c123).Select(cccc => cccc.ToLower())
-                .Distinct().Where(ccc => ccc.Length == 2 && ccc != "en").ToList();
-            cc.Sort();
-            return cc;
         }
 
         private static void Crawler_PageCrawlCompleted(object sender, PageCrawlCompletedArgs e)
@@ -194,6 +143,92 @@ namespace tz2
             q.TryTake(out res);
             return res.Item3;
         }
+    }
+
+    class BetterDecisionMaker : ICrawlDecisionMaker
+    {
+        private readonly CrawlDecisionMaker def;
+        private readonly Uri start;
+        public BetterDecisionMaker(Uri start)
+        {
+            def = new CrawlDecisionMaker();
+            this.start = start;
+        }
+
+        public CrawlDecision ShouldCrawlPage(PageToCrawl page, CrawlContext crawlContext)
+        {
+            if (page.Uri.Host != start.Host)
+            {
+                return new CrawlDecision { Allow = false, Reason = "Different domain" };
+            }
+
+            bool isCulture = IsCultureLink(page);
+
+            if (isCulture)
+            {
+                return new CrawlDecision { Allow = false, Reason = "" };
+            }
+
+            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.Uri.AbsolutePath.Contains(pp)))
+            {
+                return new CrawlDecision { Allow = false, Reason = "Ads or images" };
+            }
+            return def.ShouldCrawlPage(page, crawlContext);
+        }
+
+        public CrawlDecision ShouldCrawlPageLinks(CrawledPage page, CrawlContext crawlContext)
+        {
+            if (page.Uri.Host != start.Host)
+            {
+                return new CrawlDecision { Allow = false, Reason = "Different domain" };
+            }
+
+            bool isCulture = IsCultureLink(page);
+
+            if (isCulture)
+            {
+                return new CrawlDecision { Allow = false, Reason = "" };
+            }
+
+            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.Uri.AbsolutePath.Contains(pp)))
+            {
+                return new CrawlDecision { Allow = false, Reason = "Ads or images" };
+            }
+            return def.ShouldCrawlPageLinks(page, crawlContext);
+        }
+
+        public CrawlDecision ShouldDownloadPageContent(CrawledPage crawledPage, CrawlContext crawlContext)
+        {
+            return def.ShouldDownloadPageContent(crawledPage, crawlContext);
+        }
+
+        public CrawlDecision ShouldRecrawlPage(CrawledPage crawledPage, CrawlContext crawlContext)
+        {
+            return def.ShouldRecrawlPage(crawledPage, crawlContext);
+        }
+
+        private static bool IsCultureLink(PageToCrawl page)
+        {
+            List<string> cc = Cultures;
+            var isCulture = cc.Any(s => page.Uri.AbsolutePath.Contains("/" + s + "/"));
+            return isCulture;
+        }
+
+        private static List<string> Cultures = GetCultures();
+
+        private static List<string> GetCultures()
+        {
+            var c = CultureInfo.GetCultures(CultureTypes.AllCultures);
+
+            var c123 = c.Where(ss => ss.Name.Contains("-")).Select(sss => sss.Name.Substring(sss.Name.IndexOf("-") + 1)).Where(sss => sss.Length == 2 && !sss.Contains("-"));
+
+            var cc = c.Select(c1 => c1.TwoLetterISOLanguageName)
+                .Concat(c123).Select(cccc => cccc.ToLower())
+                .Distinct().Where(ccc => ccc.Length == 2 && ccc != "en").ToList();
+            cc.Sort();
+            return cc;
+        }
+
     }
 }
 
