@@ -39,7 +39,7 @@ namespace tz2
                 MaxPagesToCrawl = 0,
                 MinCrawlDelayPerDomainMilliSeconds = 10,
             };
-            var start = new Uri("https://filehippo.com/");
+            var start = new Uri("https://thailand.kyocera.com/");
             var crawler = new PoliteWebCrawler(
                 config,
                 new BetterDecisionMaker(start),
@@ -56,7 +56,7 @@ namespace tz2
             crawler.PageCrawlCompleted += Crawler_PageCrawlCompleted;
             crawler.PageCrawlCompleted += (sender, e) =>
             {
-                if (e.CrawledPage.Uri.AbsolutePath.Contains(".exe"))
+                if (new[] { ".exe", ".zip", ".tar" }.Any(c => e.CrawledPage.Uri.AbsolutePath.Contains(c)))
                 {
                     lock (files)
                     {
@@ -167,10 +167,10 @@ namespace tz2
 
         public static CrawlDecision ShouldCrawl(Uri page, Uri start)
         {
-            if (start != null && GetDomain(page) != GetDomain(start))
-            {
-                return new CrawlDecision { Allow = false, Reason = "Different domain" };
-            }
+            //if (start != null && GetDomain(page) != GetDomain(start))
+            //{
+            //    return new CrawlDecision { Allow = false, Reason = "Different domain" };
+            //}
 
             bool isCulture = IsCultureLink(page);
 
@@ -179,7 +179,7 @@ namespace tz2
                 return new CrawlDecision { Allow = false, Reason = "" };
             }
 
-            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script", "news" }.Any(pp => page.AbsolutePath.Contains(pp)))
+            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script", "news", "assets" }.Any(pp => page.AbsolutePath.Contains(pp)))
             {
                 return new CrawlDecision { Allow = false, Reason = "Ads or images" };
             }
