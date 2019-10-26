@@ -53,25 +53,11 @@ namespace tz2
 
             crawler.ShouldCrawlPageDecisionMaker = (page, ctx) =>
             {
-                if (page.Uri.Host != start.Host)
-                {
-                    return new CrawlDecision { Allow = false, Reason = "Different domain" };
-                }
-
-                bool isCulture = IsCultureLink(page);
-
-                if (isCulture)
-                {
-                    return new CrawlDecision { Allow = false, Reason = "" };
-                }
-
-                if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => page.Uri.AbsolutePath.Contains(pp)))
-                {
-                    return new CrawlDecision { Allow = false, Reason = "Ads or images" };
-                }
-
-                return new CrawlDecision { Allow = true };
+                var uri = page.Uri;
+                return ShouldCrawl(start, uri);
             };
+            crawler.ShouldCrawlPageLinksDecisionMaker = (page, ctx) => ShouldCrawl(start, page.Uri);
+
             var files = new HashSet<string>();
             var decMaker = new CrawlDecisionMaker();
             crawler.PageCrawlCompleted += Crawler_PageCrawlCompleted;
@@ -89,10 +75,32 @@ namespace tz2
             var crawlResult = await crawler.CrawlAsync(start);
         }
 
-        private static bool IsCultureLink(PageToCrawl page)
+        private static CrawlDecision ShouldCrawl(Uri start, Uri uri)
+        {
+            if (uri.Host != start.Host)
+            {
+                return new CrawlDecision { Allow = false, Reason = "Different domain" };
+            }
+
+            bool isCulture = IsCultureLink(uri);
+
+            if (isCulture)
+            {
+                return new CrawlDecision { Allow = false, Reason = "" };
+            }
+
+            if (new[] { "img", "imag", "doubleclick", "png", "jpg", "style", "script" }.Any(pp => uri.AbsolutePath.Contains(pp)))
+            {
+                return new CrawlDecision { Allow = false, Reason = "Ads or images" };
+            }
+
+            return new CrawlDecision { Allow = true };
+        }
+
+        private static bool IsCultureLink(Uri uri)
         {
             List<string> cc = Cultures;
-            var isCulture = cc.Any(s => page.Uri.AbsolutePath.Contains("/" + s + "/"));
+            var isCulture = cc.Any(s => uri.AbsolutePath.Contains("/" + s + "/"));
             return isCulture;
         }
 
